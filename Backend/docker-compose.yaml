@@ -8,7 +8,7 @@ services:
     container_name: stackmind-backend-dev
     depends_on:
       - mongodb
-      - neon-local-proxy
+      - redis
     env_file:
       - .env.development
     environment:
@@ -16,9 +16,12 @@ services:
       PORT: 4001
       DATABASE_URL: mongodb://mongodb:27017/stackmind_dev?directConnection=true
       MONGO_URI: mongodb://mongodb:27017/stackmind_dev?directConnection=true
+      REDIS_URL: redis://redis:6379
     ports:
       - '4001:4001'
     restart: unless-stopped
+    networks:
+      - stackmind-dev-network
 
   mongodb:
     image: mongo:7
@@ -31,17 +34,19 @@ services:
     volumes:
       - ./scripts/mongo/init-dev.js:/docker-entrypoint-initdb.d/init-dev.js:ro
     restart: unless-stopped
+    networks:
+      - stackmind-dev-network
 
-  neon-local-proxy:
-    image: alpine/socat:1.8.0.0
-    container_name: stackmind-neon-local-proxy-dev
-    command: ['tcp-listen:27018,fork,reuseaddr', 'tcp-connect:mongodb:27017']
-    depends_on:
-      - mongodb
+  redis:
+    image: redis:7-alpine
+    container_name: stackmind-redis-dev
     ports:
-      - '27018:27018'
+      - '6379:6379'
+    command: redis-server --appendonly no
     restart: unless-stopped
+    networks:
+      - stackmind-dev-network
 
 networks:
-  default:
+  stackmind-dev-network:
     name: stackmind-dev-network

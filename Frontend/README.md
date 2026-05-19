@@ -1,4 +1,4 @@
-# ContextOS Frontend
+# StackMind Frontend
 
 React 18 + Vite frontend scaffold using JavaScript with Tailwind CSS and modular domain structure.
 

@@ -33,7 +33,7 @@ const countdownLabel = (expiresAt, now) => {
 };
 
 const TeamSettings = () => {
-  const { organisations, currentOrg, setActiveOrg } = useOrg();
+  const { organisations, currentOrg, setActiveOrg, selectOrgPending } = useOrg();
   const activatedOrgRef = useRef(null);
   const [contextReady, setContextReady] = useState(false);
   const [members, setMembers] = useState([]);
@@ -110,6 +110,11 @@ const TeamSettings = () => {
   const handleRoleChange = async (member, role) => {
     if (member.role === role) return;
 
+    const canUpdate = await ensureOrgContext();
+    if (!canUpdate) {
+      return;
+    }
+
     const previous = members;
     setMembers((value) => value.map((item) => (item.memberId === member.memberId ? { ...item, role } : item)));
 
@@ -123,8 +128,34 @@ const TeamSettings = () => {
     }
   };
 
+  const ensureOrgContext = async () => {
+    if (!currentOrg?.org_id) {
+      setFeedback('Select an organisation before inviting members.');
+      return false;
+    }
+
+    if (contextReady) {
+      return true;
+    }
+
+    const activated = await setActiveOrg(currentOrg);
+    if (!activated) {
+      setFeedback('Organisation context is not ready. Please try again.');
+      return false;
+    }
+
+    activatedOrgRef.current = currentOrg.org_id;
+    setContextReady(true);
+    return true;
+  };
+
   const handleInvite = async ({ email, role }) => {
     setFeedback('');
+    const canInvite = await ensureOrgContext();
+    if (!canInvite) {
+      throw new Error('Organisation context is required');
+    }
+
     try {
       const response = await inviteMutation.mutateAsync({ email, role });
       const invitation = response?.invitation;
@@ -154,6 +185,11 @@ const TeamSettings = () => {
   const handleRemove = async () => {
     if (!removeTarget) return;
 
+    const canRemove = await ensureOrgContext();
+    if (!canRemove) {
+      return;
+    }
+
     try {
       await removeMutation.mutateAsync({ memberId: removeTarget.memberId });
       setMembers((value) => value.filter((member) => member.memberId !== removeTarget.memberId));
@@ -178,7 +214,7 @@ const TeamSettings = () => {
             <p className="text-xs uppercase tracking-wide text-text3">Active organisation</p>
             <p className="text-sm font-medium text-text">{activeOrgLabel}</p>
           </div>
-          <Button type="button" onClick={() => setOpenInviteModal(true)}>
+          <Button type="button" onClick={() => setOpenInviteModal(true)} disabled={selectOrgPending}>
             <MailPlus size={16} className="mr-2" />
             Invite member
           </Button>

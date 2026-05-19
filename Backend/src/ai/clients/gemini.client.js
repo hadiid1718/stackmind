@@ -1,7 +1,11 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 import { env } from '../../config/env.js';
 import { AppError } from '../../utils/appError.js';
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+
+let geminiClient = null;
 
 const EMBEDDING_MODEL_FALLBACKS = [
   'gemini-embedding-001',
@@ -47,6 +51,18 @@ const ensureGeminiApiKey = () => {
   }
 };
 
+const shouldUseSdk = () => env.geminiUseSdk && env.nodeEnv !== 'test';
+
+const getGeminiClient = () => {
+  if (geminiClient) {
+    return geminiClient;
+  }
+
+  ensureGeminiApiKey();
+  geminiClient = new GoogleGenerativeAI(env.geminiApiKey);
+  return geminiClient;
+};
+
 const buildGeminiUrl = path =>
   `${GEMINI_API_BASE_URL}${path}?key=${encodeURIComponent(env.geminiApiKey)}`;
 
@@ -78,7 +94,13 @@ const isModelUnsupportedError = ({ status, message }) => {
     return true;
   }
 
-  if (status !== 400) {
+  if (status === 400) {
+    return /not found|not supported|unsupported|unknown model|does not support/i.test(
+      String(message || '')
+    );
+  }
+
+  if (status !== undefined) {
     return false;
   }
 
@@ -110,6 +132,31 @@ const createGeminiQuotaExceededError = ({ operation, model, reason }) =>
     }
   );
 
+const parseGeminiSdkError = error => {
+  const message = String(
+    error?.message ||
+      error?.error?.message ||
+      error?.response?.data?.error?.message ||
+      ''
+  ).trim();
+  const statusFromMessage = Number.parseInt(
+    String(message).match(/\[(\d{3})\]/)?.[1],
+    10
+  );
+  const statusCandidates = [
+    error?.status,
+    error?.response?.status,
+    error?.error?.code,
+    error?.cause?.status,
+    Number.isNaN(statusFromMessage) ? undefined : statusFromMessage,
+  ].filter(value => Number.isFinite(value));
+
+  return {
+    status: statusCandidates.length > 0 ? statusCandidates[0] : undefined,
+    message: message || 'Gemini request failed',
+  };
+};
+
 const listModelsByMethod = async method => {
   const response = await fetch(buildGeminiUrl('/models'));
 
@@ -133,7 +180,7 @@ const listModelsByMethod = async method => {
 const listEmbedContentModels = () => listModelsByMethod('embedContent');
 const listGenerateContentModels = () => listModelsByMethod('generateContent');
 
-const requestGeminiEmbedding = async ({ question, model }) => {
+const requestGeminiEmbeddingViaRest = async ({ question, model }) => {
   const response = await fetch(
     buildGeminiUrl(`/models/${encodeURIComponent(model)}:embedContent`),
     {
@@ -178,7 +225,11 @@ const requestGeminiEmbedding = async ({ question, model }) => {
   };
 };
 
-const requestGeminiCompletion = async ({ model, systemPrompt, userPrompt }) => {
+const requestGeminiCompletionViaRest = async ({
+  model,
+  systemPrompt,
+  userPrompt,
+}) => {
   const response = await fetch(
     buildGeminiUrl(`/models/${encodeURIComponent(model)}:generateContent`),
     {
@@ -227,6 +278,100 @@ const requestGeminiCompletion = async ({ model, systemPrompt, userPrompt }) => {
     answer,
   };
 };
+
+const requestGeminiEmbeddingViaSdk = async ({ question, model }) => {
+  try {
+    const client = getGeminiClient();
+    const embeddingModel = client.getGenerativeModel({ model });
+    const response = await embeddingModel.embedContent(question);
+    const embedding = response?.embedding?.values;
+
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      throw new AppError(
+        'Gemini embedding generation returned empty values',
+        502,
+        {
+          model,
+        }
+      );
+    }
+
+    return {
+      ok: true,
+      model,
+      embedding,
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    const { status, message } = parseGeminiSdkError(error);
+    return {
+      ok: false,
+      model,
+      status,
+      message,
+    };
+  }
+};
+
+const requestGeminiCompletionViaSdk = async ({
+  model,
+  systemPrompt,
+  userPrompt,
+}) => {
+  try {
+    const client = getGeminiClient();
+    const completionModel = client.getGenerativeModel({
+      model,
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        temperature: 0.2,
+      },
+    });
+    const result = await completionModel.generateContent(userPrompt);
+    const response = result?.response || result;
+    const answer =
+      typeof response?.text === 'function'
+        ? response.text()
+        : parseGeminiAnswerText(response);
+
+    if (!answer) {
+      throw new AppError('Gemini returned an empty answer', 502, {
+        model,
+      });
+    }
+
+    return {
+      ok: true,
+      model,
+      answer: String(answer).trim(),
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    const { status, message } = parseGeminiSdkError(error);
+    return {
+      ok: false,
+      model,
+      status,
+      message,
+    };
+  }
+};
+
+const requestGeminiEmbedding = async args =>
+  shouldUseSdk()
+    ? requestGeminiEmbeddingViaSdk(args)
+    : requestGeminiEmbeddingViaRest(args);
+
+const requestGeminiCompletion = async args =>
+  shouldUseSdk()
+    ? requestGeminiCompletionViaSdk(args)
+    : requestGeminiCompletionViaRest(args);
 
 export const isGeminiConfigured = () => Boolean(env.geminiApiKey);
 

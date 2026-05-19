@@ -21,21 +21,21 @@ export const publishNotificationEvent = async event => {
 
   const kafkaPayload = createResult.notification
     ? {
-      notification_id: createResult.notification.id,
-      ...createResult.notification,
-    }
+        notification_id: createResult.notification.id,
+        ...createResult.notification,
+      }
     : {
-      user_id: event.user_id,
-      org_id: event.org_id || 'global',
-      type: event.type,
-      severity: event.severity,
-      message: event.message,
-      route: event.route,
-      metadata: event.metadata || {},
-      skipped: true,
-      reason: createResult.reason || 'notification-skipped',
-      createdAt: new Date().toISOString(),
-    };
+        user_id: event.user_id,
+        org_id: event.org_id || 'global',
+        type: event.type,
+        severity: event.severity,
+        message: event.message,
+        route: event.route,
+        metadata: event.metadata || {},
+        skipped: true,
+        reason: createResult.reason || 'notification-skipped',
+        createdAt: new Date().toISOString(),
+      };
 
   await publishToKafka(env.notificationKafkaTopic, {
     ...kafkaPayload,

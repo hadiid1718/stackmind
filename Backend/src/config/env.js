@@ -1,14 +1,27 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
 const runtimeNodeEnv = process.env.NODE_ENV || 'development';
-const envSpecificPath = path.resolve(process.cwd(), `.env.${runtimeNodeEnv}`);
-const defaultEnvPath = path.resolve(process.cwd(), '.env');
+const cwd = process.cwd();
+const configDir = path.dirname(fileURLToPath(import.meta.url));
+const backendRoot = path.resolve(configDir, '..', '..');
+const envCandidates = [
+  path.resolve(cwd, `.env.${runtimeNodeEnv}`),
+  path.resolve(cwd, '.env'),
+  path.resolve(backendRoot, `.env.${runtimeNodeEnv}`),
+  path.resolve(backendRoot, '.env'),
+];
+const resolvedEnvPath = envCandidates.find(candidate => existsSync(candidate));
 
-dotenv.config({
-  path: existsSync(envSpecificPath) ? envSpecificPath : defaultEnvPath,
-});
+if (resolvedEnvPath) {
+  dotenv.config({
+    path: resolvedEnvPath,
+  });
+} else {
+  dotenv.config();
+}
 
 const isProduction = runtimeNodeEnv === 'production';
 
@@ -293,6 +306,7 @@ export const env = {
   enterpriseMaxUsers: toNumber(process.env.ENTERPRISE_MAX_USERS, 0),
   openAiApiKey: process.env.OPENAI_API_KEY,
   geminiApiKey: process.env.GEMINI_API_KEY,
+  geminiUseSdk: toBoolean(process.env.GEMINI_USE_SDK, true),
   aiProviderDefault: normalizeProviderDefault(process.env.AI_PROVIDER_DEFAULT),
   aiMockMode: toBoolean(
     process.env.AI_MOCK_MODE,

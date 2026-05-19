@@ -8,9 +8,9 @@ const getTransporter = () => {
   if (!transporter) {
     const auth = env.smtpUser
       ? {
-        user: env.smtpUser,
-        pass: env.smtpPass,
-      }
+          user: env.smtpUser,
+          pass: env.smtpPass,
+        }
       : undefined;
 
     transporter = nodemailer.createTransport({

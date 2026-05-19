@@ -25,9 +25,13 @@ const InviteMemberModal = ({ open, onClose, onInvite, isSubmitting }) => {
   });
 
   const submit = async (values) => {
-    await onInvite(values);
-    reset();
-    onClose();
+    try {
+      await onInvite(values);
+      reset();
+      onClose();
+    } catch {
+      // Keep modal open so users can fix and retry.
+    }
   };
 
   return (

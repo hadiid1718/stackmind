@@ -53,28 +53,28 @@ export const normalizeGitHubWebhookEvent = ({ orgId, req, payload }) => {
     ref: payload.ref || null,
     commits: Array.isArray(payload.commits)
       ? payload.commits.map(commit => ({
-        id: commit.id,
-        message: commit.message,
-        author: commit.author,
-        url: commit.url,
-      }))
+          id: commit.id,
+          message: commit.message,
+          author: commit.author,
+          url: commit.url,
+        }))
       : [],
     pull_request: payload.pull_request
       ? {
-        number: payload.pull_request.number,
-        state: payload.pull_request.state,
-        title: payload.pull_request.title,
-        merged: payload.pull_request.merged,
-        url: payload.pull_request.html_url || payload.pull_request.url,
-      }
+          number: payload.pull_request.number,
+          state: payload.pull_request.state,
+          title: payload.pull_request.title,
+          merged: payload.pull_request.merged,
+          url: payload.pull_request.html_url || payload.pull_request.url,
+        }
       : null,
     issue: payload.issue
       ? {
-        number: payload.issue.number,
-        state: payload.issue.state,
-        title: payload.issue.title,
-        url: payload.issue.html_url || payload.issue.url,
-      }
+          number: payload.issue.number,
+          state: payload.issue.state,
+          title: payload.issue.title,
+          url: payload.issue.html_url || payload.issue.url,
+        }
       : null,
   };
 
@@ -91,9 +91,9 @@ export const normalizeGitHubWebhookEvent = ({ orgId, req, payload }) => {
       },
       payload.repository
         ? {
-          repository_id: payload.repository.id || null,
-          repository_full_name: payload.repository.full_name || null,
-        }
+            repository_id: payload.repository.id || null,
+            repository_full_name: payload.repository.full_name || null,
+          }
         : {}
     ),
     timestamp:
@@ -127,10 +127,10 @@ export const normalizeJiraWebhookEvent = ({ orgId, req, payload }) => {
       },
       project: issue.fields?.project
         ? {
-          id: issue.fields.project.id || null,
-          key: issue.fields.project.key || null,
-          name: issue.fields.project.name || null,
-        }
+            id: issue.fields.project.id || null,
+            key: issue.fields.project.key || null,
+            name: issue.fields.project.name || null,
+          }
         : null,
       changelog: payload.changelog || null,
     },

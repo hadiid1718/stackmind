@@ -39,11 +39,11 @@ export const buildRagPrompt = ({ question, chunks, graphContext }) => {
 
   const graphSection = graphContext.length
     ? graphContext
-      .map(
-        (context, index) =>
-          `[G${index + 1}] root=${context.root_id || 'n/a'} type=${context.root_type || 'n/a'} nodes=${context.node_count} edges=${context.edge_count}`
-      )
-      .join('\n')
+        .map(
+          (context, index) =>
+            `[G${index + 1}] root=${context.root_id || 'n/a'} type=${context.root_type || 'n/a'} nodes=${context.node_count} edges=${context.edge_count}`
+        )
+        .join('\n')
     : 'No causal graph context available.';
 
   const systemPrompt = [

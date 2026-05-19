@@ -66,9 +66,9 @@ export const getPlans = asyncHandler(async (_req, res) => {
   const annualSavingsPercent =
     monthly > 0
       ? Math.max(
-        0,
-        Math.round(((monthly * 12 - annual) / (monthly * 12)) * 100)
-      )
+          0,
+          Math.round(((monthly * 12 - annual) / (monthly * 12)) * 100)
+        )
       : 0;
 
   res.status(200).json({

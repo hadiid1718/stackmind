@@ -65,7 +65,10 @@ export const streamRagQuery = async (req, res, next) => {
       aiProvider,
     });
 
-    if (cached) {
+    const ignoreCachedMock =
+      cached && cached.ai_provider === 'mock' && !env.aiMockMode;
+
+    if (cached && !ignoreCachedMock) {
       const cachedProvider = cached.ai_provider || 'mock';
 
       writeSseEvent(res, 'meta', {

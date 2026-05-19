@@ -12,38 +12,38 @@ const resolveOrgId = req =>
 
 export const usageMetering =
   ({ units = 1 } = {}) =>
-    async (req, _res, next) => {
-      if (!env.billingEnabled) {
-        return next();
+  async (req, _res, next) => {
+    if (!env.billingEnabled) {
+      return next();
+    }
+
+    const orgId = resolveOrgId(req);
+
+    if (!orgId) {
+      return next(new AppError('org_id is required for usage metering', 400));
+    }
+
+    try {
+      const subscription = await loadSubscriptionForOrg(orgId);
+      const limit = getOrgAiQueryLimit(subscription);
+      const record = await getOrCreateUsageRecord(orgId);
+
+      if (limit !== 0 && record.usageCount + units > limit) {
+        return next(
+          new AppError('Monthly AI query limit exceeded', 429, {
+            org_id: orgId,
+            usageCount: record.usageCount,
+            limit,
+            periodKey: record.periodKey,
+          })
+        );
       }
 
-      const orgId = resolveOrgId(req);
-
-      if (!orgId) {
-        return next(new AppError('org_id is required for usage metering', 400));
-      }
-
-      try {
-        const subscription = await loadSubscriptionForOrg(orgId);
-        const limit = getOrgAiQueryLimit(subscription);
-        const record = await getOrCreateUsageRecord(orgId);
-
-        if (limit !== 0 && record.usageCount + units > limit) {
-          return next(
-            new AppError('Monthly AI query limit exceeded', 429, {
-              org_id: orgId,
-              usageCount: record.usageCount,
-              limit,
-              periodKey: record.periodKey,
-            })
-          );
-        }
-
-        const updated = await incrementUsageRecord({ orgId, units });
-        req.billingSubscription = subscription;
-        req.billingUsage = updated;
-        return next();
-      } catch (error) {
-        return next(error);
-      }
-    };
+      const updated = await incrementUsageRecord({ orgId, units });
+      req.billingSubscription = subscription;
+      req.billingUsage = updated;
+      return next();
+    } catch (error) {
+      return next(error);
+    }
+  };

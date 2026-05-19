@@ -1,4 +1,4 @@
-# ContextOS Backend (Module 1 + Module 3)
+# StackMind Backend (Module 1 + Module 3)
 
 Authentication/User Management service with embedded Ingestion Module (Data Integrations).
 
@@ -299,7 +299,7 @@ MONGO_URI=${DATABASE_URL}
 
 ### Development (Local Docker)
 
-Run local app + local MongoDB + local proxy sidecar:
+Run local app + local MongoDB:
 
 ```bash
 docker compose -f docker-compose.dev.yaml up --build
@@ -315,7 +315,6 @@ What runs in dev:
 
 - `app` service on `http://localhost:4001`
 - `mongodb` on `localhost:27017`
-- `neon-local-proxy` sidecar on `localhost:27018` forwarding to MongoDB
 
 Ephemeral dev/testing behavior:
 
